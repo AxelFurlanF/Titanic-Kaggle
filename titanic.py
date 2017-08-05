@@ -15,74 +15,96 @@ import pandas as pd
 # Importing the dataset
 dataset = pd.read_csv('train.csv')
 dataset_test = pd.read_csv('test.csv')
-X = dataset.iloc[:, [2,4,5,6,7,9,11]].values
-y = dataset.iloc[:, 1].values
 
-X_test = dataset_test.iloc[:, [2,3,4,5,6,7,9,11]].values
+#Dummies para Sexo y Embarque
+dataset=pd.get_dummies(dataset ,columns=["Sex","Embarked"], drop_first=True)
+dataset_test=pd.get_dummies(dataset_test ,columns=["Sex","Embarked"], drop_first=True)
+#Columna 10 es Sexo, Columna 11 y 12 es Embarcado
+"""
+0:PassengerId
+1:Survived
+2:Pclass
+3:Name
+4:Sex
+5:Age
+6:SibSp
+7:Parch
+8:Ticket
+9:Fare
+10:Cabin
+11:Embark
+--------After Dummies------------
+0:PassengerId
+1:Survived
+2-1:Pclass
+3-2:Name
+4-3:Age
+5-4:SibSp
+6-5:Parch p-valor: 0.380
+7-6:Ticket
+8-7:Fare p-valor: 0.383
+9-8:Cabin
+10-9:Sex_male
+11-10:Embarked_Q
+12-11:Embarked_S
+"""
+X_train = dataset.iloc[:, [2,4,5,10,11,12]].values
+y_train = dataset.iloc[:, 1].values
+
+
 
 """Arreglar datos"""
 """Edades"""
 from sklearn.preprocessing import Imputer
 imputer = Imputer(missing_values = 'NaN', strategy = 'mean', axis = 0)
-imputer = imputer.fit(X[:, 3:4])
-X[:, 3:4] = imputer.transform(X[:, 3:4])
-"""Sexo"""
-from sklearn.preprocessing import LabelEncoder, OneHotEncoder
-labelencoder_X = LabelEncoder()
-X[:, 2] = labelencoder_X.fit_transform(X[:, 2])
-onehotencoder = OneHotEncoder(categorical_features = [2])
-X = onehotencoder.fit_transform(X).toarray()
+imputer = imputer.fit(X_train[:, 1:2])
+X_train[:, 1:2] = imputer.transform(X_train[:, 1:2])
 
-
+#Resumida del modelo
+#importar modelos estadisticos
+"""
+import statsmodels.formula.api as sm
+#appendear X_0
+X_train = np.append(arr =np.ones((len(X_train), 1)).astype(int), values = X_train, axis = 1)
+regressor_OLS = sm.OLS(endog = y_train, exog = X_train).fit()
+regressor_OLS.summary()
+#corriendo el summary con OLS, p.valores: sibsp y parch, con .380 y .383 respectivamente.
+"""
 # Feature Scaling
 from sklearn.preprocessing import StandardScaler
 sc = StandardScaler()
-X = sc.fit_transform(X)
+X_train = sc.fit_transform(X_train)
 
 # Fitting Kernel SVM to the Training set
 from sklearn.svm import SVC
-classifier = SVC(kernel = 'rbf', random_state = 0)
-classifier.fit(X, y)
+classifier = SVC(kernel = 'rbf')
+classifier.fit(X_train, y_train)
+
+from sklearn.ensemble import RandomForestClassifier
+classifier2 = RandomForestClassifier()
+classifier2.fit(X_train, y_train)
 
 # Predicting the Test set results
-y_pred = classifier.predict(X)
-
+y_pred = classifier.predict(X_train)
+y_pred2 = classifier2.predict(X_train)
 # Making the Confusion Matrix
 from sklearn.metrics import confusion_matrix
-cm = confusion_matrix(y, y_pred)
+cm = confusion_matrix(y_train, y_pred)
+cm2 = confusion_matrix(y_train, y_pred2)
 
-# Visualising the Training set results
-from matplotlib.colors import ListedColormap
-X_set, y_set = X_train, y_train
-X1, X2 = np.meshgrid(np.arange(start = X_set[:, 0].min() - 1, stop = X_set[:, 0].max() + 1, step = 0.01),
-                     np.arange(start = X_set[:, 1].min() - 1, stop = X_set[:, 1].max() + 1, step = 0.01))
-plt.contourf(X1, X2, classifier.predict(np.array([X1.ravel(), X2.ravel()]).T).reshape(X1.shape),
-             alpha = 0.75, cmap = ListedColormap(('red', 'green')))
-plt.xlim(X1.min(), X1.max())
-plt.ylim(X2.min(), X2.max())
-for i, j in enumerate(np.unique(y_set)):
-    plt.scatter(X_set[y_set == j, 0], X_set[y_set == j, 1],
-                c = ListedColormap(('red', 'green'))(i), label = j)
-plt.title('Kernel SVM (Training set)')
-plt.xlabel('Age')
-plt.ylabel('Estimated Salary')
-plt.legend()
-plt.show()
 
-# Visualising the Test set results
-from matplotlib.colors import ListedColormap
-X_set, y_set = X_test, y_test
-X1, X2 = np.meshgrid(np.arange(start = X_set[:, 0].min() - 1, stop = X_set[:, 0].max() + 1, step = 0.01),
-                     np.arange(start = X_set[:, 1].min() - 1, stop = X_set[:, 1].max() + 1, step = 0.01))
-plt.contourf(X1, X2, classifier.predict(np.array([X1.ravel(), X2.ravel()]).T).reshape(X1.shape),
-             alpha = 0.75, cmap = ListedColormap(('red', 'green')))
-plt.xlim(X1.min(), X1.max())
-plt.ylim(X2.min(), X2.max())
-for i, j in enumerate(np.unique(y_set)):
-    plt.scatter(X_set[y_set == j, 0], X_set[y_set == j, 1],
-                c = ListedColormap(('red', 'green'))(i), label = j)
-plt.title('Kernel SVM (Test set)')
-plt.xlabel('Age')
-plt.ylabel('Estimated Salary')
-plt.legend()
-plt.show()
+X_test = dataset_test.iloc[:, [1,3,4,9,10,11]].values
+from sklearn.preprocessing import Imputer
+imputer = Imputer(missing_values = 'NaN', strategy = 'mean', axis = 0)
+imputer = imputer.fit(X_test[:, 1:2])
+X_test[:, 1:2] = imputer.transform(X_test[:, 1:2])
+from sklearn.preprocessing import StandardScaler
+sc = StandardScaler()
+X_test = sc.fit_transform(X_test)
+
+y_pred_test = classifier2.predict(X_test)
+ids = dataset_test.iloc[:, 0]
+preds=np.column_stack((ids,y_pred_test))
+
+preds = pd.DataFrame({'PassengerId':ids, 'Survived':y_pred_test})
+preds.to_csv("preds.csv", index=False)
