@@ -17,18 +17,29 @@ import seaborn as sns
 dataset = pd.read_csv('train.csv')
 dataset_test = pd.read_csv('test.csv')
 
+respuestas=pd.read_csv('rf_mod_Solution.csv')
+y_respuestas=respuestas.iloc[:, 1].values
+
+passengers_pred=dataset_test["PassengerId"]
+y_train = dataset.iloc[:, 1].values
+
+
 """Dropear columnas que no sirven"""
 dataset.drop("Cabin",axis=1,inplace=True)
 dataset_test.drop("Cabin",axis=1,inplace=True)
 
-dataset.drop(["PassengerId", "Ticket"],axis=1,inplace=True)
-dataset_test.drop(["Ticket"],axis=1,inplace=True)
+dataset.drop(["Survived","PassengerId", "Ticket"],axis=1,inplace=True)
+dataset_test.drop(["PassengerId","Ticket"],axis=1,inplace=True)
 
 """Arreglar datos"""
 names = dataset['Name'].str.split(", ",expand=True)[1].str.split(".",expand=True)[0]
 names_test= dataset_test['Name'].str.split(", ",expand=True)[1].str.split(".",expand=True)[0]
+
 dataset["Title"]=names
+dataset_test["Title"]=names_test
+
 dataset.drop(["Name"],axis=1,inplace=True)
+dataset_test.drop(["Name"],axis=1,inplace=True)
 
 
 dataset['Fare'] = dataset['Fare'].astype(int)
@@ -73,11 +84,22 @@ dataset_test=pd.get_dummies(dataset_test ,columns=["Pclass"], drop_first=True)
 dataset=pd.get_dummies(dataset ,columns=["Embarked"], drop_first=True)
 dataset_test=pd.get_dummies(dataset_test ,columns=["Embarked"], drop_first=True)
 
+train_objs_num = len(dataset)
+dataset = pd.concat(objs=[dataset, dataset_test], axis=0)
+dataset_preprocessed = pd.get_dummies(dataset, columns=["Title"])
+dataset = dataset_preprocessed[:train_objs_num]
+dataset_test= dataset_preprocessed[train_objs_num:]
 
-X_train = dataset.iloc[:, 1:].values
-y_train = dataset.iloc[:, 0].values
+#dataset["Normal"]=dataset["Title_Mr"]+dataset["Title_Mrs"]
+dataset["Rare"]=dataset["Title_Dona"]+dataset["Title_Lady"]+dataset["Title_the Countess"]+dataset["Title_Capt"]+dataset["Title_Col"]+dataset["Title_Don"]+dataset["Title_Dr"]+dataset["Title_Major"]+dataset["Title_Rev"]+dataset["Title_Sir"]+dataset["Title_Jonkheer"]
+dataset_test["Rare"]=dataset_test["Title_Dona"]+dataset_test["Title_Lady"]+dataset_test["Title_the Countess"]+dataset_test["Title_Capt"]+dataset_test["Title_Col"]+dataset_test["Title_Don"]+dataset_test["Title_Dr"]+dataset_test["Title_Major"]+dataset_test["Title_Rev"]+dataset_test["Title_Sir"]+dataset_test["Title_Jonkheer"]
 
-X_test = dataset_test.iloc[:, 1:].values
+filter_col = [col for col in list(dataset) if col.startswith('Title_')]
+dataset.drop(filter_col, axis=1, inplace=True)
+dataset_test.drop(filter_col, axis=1, inplace=True)
+
+X_train = dataset.iloc[:, :].values
+X_test = dataset_test.iloc[:, :].values
 
 #Resumida del modelo
 #importar modelos estadisticos
@@ -106,13 +128,11 @@ y_pred = classifier.predict(X_train)
 from sklearn.metrics import confusion_matrix
 cm = confusion_matrix(y_train, y_pred)
 
+
 """-----------------Proceso para test--------------------"""
 #Predecir
 y_pred_test = classifier.predict(X_test)
 
 """-----------------Armar csv----------------"""
-ids = dataset_test.iloc[:, 0]
-preds=np.column_stack((ids,y_pred_test))
-
-preds = pd.DataFrame({'PassengerId':ids, 'Survived':y_pred_test})
+preds = pd.DataFrame({'PassengerId':passengers_pred, 'Survived':y_pred_test})
 preds.to_csv("preds.csv", index=False)
