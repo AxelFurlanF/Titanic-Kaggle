@@ -17,31 +17,32 @@ import seaborn as sns
 dataset = pd.read_csv('train.csv')
 dataset_test = pd.read_csv('test.csv')
 
-respuestas=pd.read_csv('rf_mod_Solution.csv')
-y_respuestas=respuestas.iloc[:, 1].values
-
+"""----------Setear variables para uso en el test--------------"""
 passengers_pred=dataset_test["PassengerId"]
 y_train = dataset.iloc[:, 1].values
 
 
-"""Dropear columnas que no sirven"""
+"""---------Dropear columnas que no sirven---------"""
 dataset.drop("Cabin",axis=1,inplace=True)
 dataset_test.drop("Cabin",axis=1,inplace=True)
 
 dataset.drop(["Survived","PassengerId", "Ticket"],axis=1,inplace=True)
 dataset_test.drop(["PassengerId","Ticket"],axis=1,inplace=True)
 
-"""Arreglar datos"""
+"""---------FEATURE ENGINEERING----------"""
+#Sacar el prefijo a cada nombre
 names = dataset['Name'].str.split(", ",expand=True)[1].str.split(".",expand=True)[0]
 names_test= dataset_test['Name'].str.split(", ",expand=True)[1].str.split(".",expand=True)[0]
 
+#Crear una nueva columna con los prefijos
 dataset["Title"]=names
 dataset_test["Title"]=names_test
 
+#Chau nombre
 dataset.drop(["Name"],axis=1,inplace=True)
 dataset_test.drop(["Name"],axis=1,inplace=True)
 
-
+#Setear datos faltantes con la mediana
 dataset['Fare'] = dataset['Fare'].astype(int)
 dataset_test['Fare'].fillna(dataset_test['Fare'].median(), inplace=True)
 dataset_test['Fare'] = dataset_test['Fare'].astype(int)
@@ -49,7 +50,7 @@ dataset["Age"].fillna(dataset["Age"].median(), inplace=True)
 dataset_test["Age"].fillna(dataset_test["Age"].median(), inplace=True)
 
 
-#Fusiono hermanos y padres y armo un campo que diaa si tiene familia o no
+#Fusiono hermanos y padres y armo un campo que diga si tiene familia o no
 dataset['Family'] = dataset["Parch"] + dataset["SibSp"]
 dataset['Family'].loc[dataset['Family'] > 0] = 1
 dataset['Family'].loc[dataset['Family'] == 0] = 0
@@ -74,6 +75,7 @@ dataset_test['Person'] = dataset_test[['Age','Sex']].apply(get_person,axis=1)
 dataset.drop(['Sex'],axis=1,inplace=True)
 dataset_test.drop(['Sex'],axis=1,inplace=True)
 
+#Dummies para persona
 dataset=pd.get_dummies(dataset ,columns=["Person"], drop_first=True)
 dataset_test=pd.get_dummies(dataset_test ,columns=["Person"], drop_first=True)
 
@@ -81,23 +83,27 @@ dataset_test=pd.get_dummies(dataset_test ,columns=["Person"], drop_first=True)
 dataset=pd.get_dummies(dataset ,columns=["Pclass"], drop_first=True)
 dataset_test=pd.get_dummies(dataset_test ,columns=["Pclass"], drop_first=True)
 
+#Dummies para embarked
 dataset=pd.get_dummies(dataset ,columns=["Embarked"], drop_first=True)
 dataset_test=pd.get_dummies(dataset_test ,columns=["Embarked"], drop_first=True)
 
+#Dummies para prefijos
 train_objs_num = len(dataset)
 dataset = pd.concat(objs=[dataset, dataset_test], axis=0)
 dataset_preprocessed = pd.get_dummies(dataset, columns=["Title"])
 dataset = dataset_preprocessed[:train_objs_num]
 dataset_test= dataset_preprocessed[train_objs_num:]
 
-#dataset["Normal"]=dataset["Title_Mr"]+dataset["Title_Mrs"]
+#Seteo si tiene un prefijo raro-de alta sociedad
 dataset["Rare"]=dataset["Title_Dona"]+dataset["Title_Lady"]+dataset["Title_the Countess"]+dataset["Title_Capt"]+dataset["Title_Col"]+dataset["Title_Don"]+dataset["Title_Dr"]+dataset["Title_Major"]+dataset["Title_Rev"]+dataset["Title_Sir"]+dataset["Title_Jonkheer"]
 dataset_test["Rare"]=dataset_test["Title_Dona"]+dataset_test["Title_Lady"]+dataset_test["Title_the Countess"]+dataset_test["Title_Capt"]+dataset_test["Title_Col"]+dataset_test["Title_Don"]+dataset_test["Title_Dr"]+dataset_test["Title_Major"]+dataset_test["Title_Rev"]+dataset_test["Title_Sir"]+dataset_test["Title_Jonkheer"]
 
+#Chau dummies de prefijo
 filter_col = [col for col in list(dataset) if col.startswith('Title_')]
 dataset.drop(filter_col, axis=1, inplace=True)
 dataset_test.drop(filter_col, axis=1, inplace=True)
 
+"""-----Setear X_train y X_test--------"""
 X_train = dataset.iloc[:, :].values
 X_test = dataset_test.iloc[:, :].values
 
@@ -115,8 +121,9 @@ regressor_OLS.summary()
 from sklearn.preprocessing import StandardScaler
 sc = StandardScaler()
 X_train = sc.fit_transform(X_train)
-X_test = sc.fit_transform(X_test)
+X_test = sc.transform(X_test)
 
+#RF parece ser el mejor
 from sklearn.ensemble import RandomForestClassifier
 classifier = RandomForestClassifier()
 classifier.fit(X_train, y_train)
@@ -124,12 +131,12 @@ classifier.score(X_train, y_train)
 
 # Predicting the Test set results
 y_pred = classifier.predict(X_train)
+
 # Making the Confusion Matrix
 from sklearn.metrics import confusion_matrix
 cm = confusion_matrix(y_train, y_pred)
 
-
-"""-----------------Proceso para test--------------------"""
+"""-----------------Prediccion final--------------------"""
 #Predecir
 y_pred_test = classifier.predict(X_test)
 
