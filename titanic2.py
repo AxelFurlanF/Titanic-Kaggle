@@ -106,15 +106,17 @@ sc = StandardScaler()
 X = sc.fit_transform(X)
 test = sc.transform(test)
 
-#RF parece ser el mejor
-from sklearn.ensemble import RandomForestClassifier
-classifier = RandomForestClassifier()
+
+#RF parece ser bueno y le pega más pero SVM tiró mejor en Kaggle
+from sklearn.svm import SVC
+classifier = SVC(kernel = 'rbf')
 classifier.fit(X, y)
 classifier.score(X, y)
+
 
 #Predecir
 y_pred_test = classifier.predict(test)
 
 """-----------------Armar csv----------------"""
 preds = pd.DataFrame({'PassengerId':passengers_pred, 'Survived':y_pred_test})
-preds.to_csv("preds.csv", index=False)
+preds.to_csv("preds2.csv", index=False)
